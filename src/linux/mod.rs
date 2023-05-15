@@ -1,5 +1,5 @@
-pub mod address;
-pub mod interface;
-pub mod io;
-pub mod request;
+mod address;
+mod interface;
+mod io;
+mod request;
 pub mod tun;
