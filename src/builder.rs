@@ -1,6 +1,5 @@
 use super::result::Result;
-#[cfg(target_os = "linux")]
-use crate::linux::params::Params;
+use crate::params::Params;
 #[cfg(target_os = "linux")]
 use crate::tun::Tun;
 use core::convert::From;
@@ -10,15 +9,22 @@ use std::net::Ipv4Addr;
 /// Represents a factory to build new instances of [`Tun`](struct.Tun.html).
 pub struct TunBuilder<'a> {
     name: &'a str,
+    #[cfg(target_os = "linux")]
     is_tap: bool,
+    #[cfg(target_os = "linux")]
     packet_info: bool,
+    #[cfg(target_os = "linux")]
     persist: bool,
     up: bool,
     mtu: Option<i32>,
+    #[cfg(target_os = "linux")]
     owner: Option<i32>,
+    #[cfg(target_os = "linux")]
     group: Option<i32>,
     address: Option<Ipv4Addr>,
+    #[cfg(target_os = "linux")]
     destination: Option<Ipv4Addr>,
+    #[cfg(target_os = "linux")]
     broadcast: Option<Ipv4Addr>,
     netmask: Option<Ipv4Addr>,
 }
@@ -29,13 +35,18 @@ impl<'a> Default for TunBuilder<'a> {
             name: "",
             owner: None,
             group: None,
+            #[cfg(target_os = "linux")]
             is_tap: false,
+            #[cfg(target_os = "linux")]
             persist: false,
             up: false,
             mtu: None,
+            #[cfg(target_os = "linux")]
             packet_info: true,
             address: None,
+            #[cfg(target_os = "linux")]
             destination: None,
+            #[cfg(target_os = "linux")]
             broadcast: None,
             netmask: None,
         }
@@ -48,7 +59,7 @@ impl<'a> TunBuilder<'a> {
         Default::default()
     }
 
-    /// Sets the name of device (max length: 16 characters), if it is empty, then device name is set by kernel. Default value is empty.
+    /// Sets the name of device, if it is empty, then a name is assigned. Default value is empty.
     pub fn name(mut self, name: &'a str) -> Self {
         self.name = name;
         self
@@ -61,6 +72,7 @@ impl<'a> TunBuilder<'a> {
     ///
     /// In contrast, *TUN* devices are layer 3 devices which means that IP packets are transmitted
     /// over it.
+    #[cfg(target_os = "linux")]
     pub fn tap(mut self, is_tap: bool) -> Self {
         self.is_tap = is_tap;
         self
@@ -74,6 +86,7 @@ impl<'a> TunBuilder<'a> {
     ///
     /// If you don't need this kind of information, you can set `packet_info` to false to only
     /// receive the raw packet (whatever it may be).
+    #[cfg(target_os = "linux")]
     pub fn packet_info(mut self, packet_info: bool) -> Self {
         self.packet_info = packet_info;
         self
@@ -94,6 +107,7 @@ impl<'a> TunBuilder<'a> {
     /// Sets the owner of device.
     ///
     /// This is the numeric UID of the user who will own the created device.
+    #[cfg(target_os = "linux")]
     pub fn owner(mut self, owner: i32) -> Self {
         self.owner = Some(owner);
         self
@@ -102,6 +116,7 @@ impl<'a> TunBuilder<'a> {
     /// Sets the group of device.
     ///
     /// This is the numeric GID of the group that will own the created device.
+    #[cfg(target_os = "linux")]
     pub fn group(mut self, group: i32) -> Self {
         self.group = Some(group);
         self
@@ -123,6 +138,7 @@ impl<'a> TunBuilder<'a> {
     /// because this device can only reach the destination address.
     ///
     /// See the [linux manpage](https://man7.org/linux/man-pages/man7/netdevice.7.html) under section *SIOCGIFDSTADDR, SIOCSIFDSTADDR* for an official description.
+    #[cfg(target_os = "linux")]
     pub fn destination(mut self, dst: Ipv4Addr) -> Self {
         self.destination = Some(dst);
         self
@@ -148,6 +164,7 @@ impl<'a> TunBuilder<'a> {
     ///
     /// Non-persistent devices on the other hand, are removed as soon as the controlling process
     /// exits.
+    #[cfg(target_os = "linux")]
     pub fn persist(mut self) -> Self {
         self.persist = true;
         self
@@ -177,7 +194,6 @@ impl<'a> TunBuilder<'a> {
 }
 
 impl<'a> From<TunBuilder<'a>> for Params {
-    #[cfg(target_os = "linux")]
     fn from(builder: TunBuilder) -> Self {
         Params {
             name: if builder.name.is_empty() {
@@ -185,6 +201,7 @@ impl<'a> From<TunBuilder<'a>> for Params {
             } else {
                 Some(builder.name.into())
             },
+            #[cfg(target_os = "linux")]
             flags: {
                 let mut flags = if builder.is_tap { IFF_TAP } else { IFF_TUN } as _;
                 if !builder.packet_info {
@@ -192,20 +209,20 @@ impl<'a> From<TunBuilder<'a>> for Params {
                 }
                 flags
             },
+            #[cfg(target_os = "linux")]
             persist: builder.persist,
             up: builder.up,
             mtu: builder.mtu,
+            #[cfg(target_os = "linux")]
             owner: builder.owner,
+            #[cfg(target_os = "linux")]
             group: builder.group,
             address: builder.address,
+            #[cfg(target_os = "linux")]
             destination: builder.destination,
+            #[cfg(target_os = "linux")]
             broadcast: builder.broadcast,
             netmask: builder.netmask,
         }
-    }
-
-    #[cfg(not(any(target_os = "linux")))]
-    fn from(builder: TunBuilder) -> Self {
-        unimplemented!()
     }
 }

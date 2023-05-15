@@ -1,12 +1,8 @@
 #[cfg(target_os = "linux")]
-mod linux {
-    pub mod address;
-    pub mod interface;
-    pub mod io;
-    pub mod params;
-    pub mod request;
-}
+#[path = "linux/mod.rs"]
+mod platform;
 
+mod params;
 mod builder;
 mod tun;
 

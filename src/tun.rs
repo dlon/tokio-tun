@@ -1,6 +1,6 @@
-use crate::linux::interface::Interface;
-use crate::linux::io::TunIo;
-use crate::linux::params::Params;
+use crate::platform::interface::Interface;
+use crate::platform::io::TunIo;
+use crate::params::Params;
 use crate::result::Result;
 use std::io;
 use std::io::{Read, Write};
@@ -103,6 +103,7 @@ impl Tun {
     }
 
     /// Creates a new instance of Tun/Tap device.
+    #[cfg(target_os = "linux")]
     pub(crate) fn new_mq(params: Params, queues: usize) -> Result<Vec<Self>> {
         let iface = Self::allocate(params, queues)?;
         let mut tuns = Vec::with_capacity(queues);

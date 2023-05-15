@@ -1,6 +1,6 @@
 use super::params::Params;
 use super::request::ifreq;
-use crate::linux::address::Ipv4AddrExt;
+use super::address::Ipv4AddrExt;
 use crate::result::Result;
 use std::net::Ipv4Addr;
 
