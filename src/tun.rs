@@ -11,7 +11,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 
 /// Represents a TUN or TAP device. Use [`TunBuilder`](struct.TunBuilder.html) to create a new instance of [`Tun`](struct.Tun.html).
 pub struct Tun {
-    tun: crate::platform::tun::AsyncInterface,
+    tun: crate::platform::tun::TunImpl,
 }
 
 #[cfg(target_os = "linux")]
@@ -52,13 +52,13 @@ impl AsyncWrite for Tun {
 impl Tun {
     /// Creates a new instance of Tun/Tap device.
     pub(crate) fn new(params: Params) -> Result<Self> {
-        crate::platform::tun::AsyncInterface::new(params).map(|tun| Self { tun })
+        crate::platform::tun::TunImpl::new(params).map(|tun| Self { tun })
     }
 
     /// Creates a new instance of Tun/Tap device.
     #[cfg(target_os = "linux")]
     pub(crate) fn new_mq(params: Params, queues: usize) -> Result<Vec<Self>> {
-        let tuns = crate::platform::tun::AsyncInterface::new_mq(params, queues)?;
+        let tuns = crate::platform::tun::TunImpl::new_mq(params, queues)?;
         Ok(tuns.into_iter().map(|tun| Self { tun }).collect())
     }
 

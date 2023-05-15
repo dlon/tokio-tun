@@ -23,12 +23,12 @@ macro_rules! ready {
     };
 }
 
-pub struct AsyncInterface {
+pub struct TunImpl {
     iface: Arc<Interface>,
     io: AsyncFd<TunIo>,
 }
 
-impl AsyncInterface {
+impl TunImpl {
     /// Creates a new instance of TUN or TAP device.
     pub fn new(params: Params) -> Result<Self> {
         let iface = Self::allocate(params, 1)?;
@@ -156,7 +156,7 @@ impl AsyncInterface {
     }
 }
 
-impl AsyncRead for AsyncInterface {
+impl AsyncRead for TunImpl {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -178,7 +178,7 @@ impl AsyncRead for AsyncInterface {
     }
 }
 
-impl AsyncWrite for AsyncInterface {
+impl AsyncWrite for TunImpl {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -212,7 +212,7 @@ impl AsyncWrite for AsyncInterface {
     }
 }
 
-impl AsRawFd for AsyncInterface {
+impl AsRawFd for TunImpl {
     fn as_raw_fd(&self) -> RawFd {
         self.io.as_raw_fd()
     }
