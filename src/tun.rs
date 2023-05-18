@@ -21,6 +21,8 @@ impl AsRawFd for Tun {
     }
 }
 
+// FIXME: implement for wintun
+#[cfg(target_os = "linux")]
 impl AsyncRead for Tun {
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -31,6 +33,8 @@ impl AsyncRead for Tun {
     }
 }
 
+// FIXME: implement for wintun
+#[cfg(target_os = "linux")]
 impl AsyncWrite for Tun {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -100,31 +104,37 @@ impl Tun {
     }
 
     /// Returns the value of MTU.
+    #[cfg(target_os = "linux")]
     pub fn mtu(&self) -> Result<i32> {
         self.tun.mtu()
     }
 
     /// Returns the IPv4 address of MTU.
+    #[cfg(target_os = "linux")]
     pub fn address(&self) -> Result<Ipv4Addr> {
         self.tun.address()
     }
 
     /// Returns the IPv4 destination address of MTU.
+    #[cfg(target_os = "linux")]
     pub fn destination(&self) -> Result<Ipv4Addr> {
         self.tun.destination()
     }
 
     /// Returns the IPv4 broadcast address of MTU.
+    #[cfg(target_os = "linux")]
     pub fn broadcast(&self) -> Result<Ipv4Addr> {
         self.tun.broadcast()
     }
 
     /// Returns the IPv4 netmask address of MTU.
+    #[cfg(target_os = "linux")]
     pub fn netmask(&self) -> Result<Ipv4Addr> {
         self.tun.netmask()
     }
 
     /// Returns the flags of MTU.
+    #[cfg(target_os = "linux")]
     pub fn flags(&self) -> Result<i16> {
         self.tun.flags()
     }

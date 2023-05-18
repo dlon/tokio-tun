@@ -17,6 +17,8 @@ pub struct TunBuilder<'a> {
     #[cfg(target_os = "linux")]
     persist: bool,
     up: bool,
+    // TODO
+    #[cfg(target_os = "linux")]
     mtu: Option<i32>,
     #[cfg(target_os = "linux")]
     owner: Option<i32>,
@@ -27,6 +29,7 @@ pub struct TunBuilder<'a> {
     destination: Option<Ipv4Addr>,
     #[cfg(target_os = "linux")]
     broadcast: Option<Ipv4Addr>,
+    #[cfg(target_os = "linux")]
     netmask: Option<Ipv4Addr>,
 }
 
@@ -34,13 +37,16 @@ impl<'a> Default for TunBuilder<'a> {
     fn default() -> Self {
         Self {
             name: "",
+            #[cfg(target_os = "linux")]
             owner: None,
+            #[cfg(target_os = "linux")]
             group: None,
             #[cfg(target_os = "linux")]
             is_tap: false,
             #[cfg(target_os = "linux")]
             persist: false,
             up: false,
+            #[cfg(target_os = "linux")]
             mtu: None,
             #[cfg(target_os = "linux")]
             packet_info: true,
@@ -49,6 +55,7 @@ impl<'a> Default for TunBuilder<'a> {
             destination: None,
             #[cfg(target_os = "linux")]
             broadcast: None,
+            #[cfg(target_os = "linux")]
             netmask: None,
         }
     }
@@ -100,6 +107,8 @@ impl<'a> TunBuilder<'a> {
     ///
     /// It can also be used as an estimate to size input buffers although the exact packet size
     /// may vary to account for some protocol overhead.
+    // TODO
+    #[cfg(target_os = "linux")]
     pub fn mtu(mut self, mtu: i32) -> Self {
         self.mtu = Some(mtu);
         self
@@ -146,12 +155,15 @@ impl<'a> TunBuilder<'a> {
     }
 
     /// Sets IPv4 broadcast address of device.
+    #[cfg(target_os = "linux")]
     pub fn broadcast(mut self, broadcast: Ipv4Addr) -> Self {
         self.broadcast = Some(broadcast);
         self
     }
 
     /// Sets IPv4 netmask address of device.
+    // TODO
+    #[cfg(target_os = "linux")]
     pub fn netmask(mut self, netmask: Ipv4Addr) -> Self {
         self.netmask = Some(netmask);
         self
@@ -197,6 +209,9 @@ impl<'a> TunBuilder<'a> {
 impl<'a> From<TunBuilder<'a>> for Params {
     fn from(builder: TunBuilder) -> Self {
         Params {
+            #[cfg(target_os = "windows")]
+            name: builder.name.to_owned(),
+            #[cfg(target_os = "linux")]
             name: if builder.name.is_empty() {
                 None
             } else {
@@ -213,6 +228,8 @@ impl<'a> From<TunBuilder<'a>> for Params {
             #[cfg(target_os = "linux")]
             persist: builder.persist,
             up: builder.up,
+            // TODO
+            #[cfg(target_os = "linux")]
             mtu: builder.mtu,
             #[cfg(target_os = "linux")]
             owner: builder.owner,
@@ -223,6 +240,8 @@ impl<'a> From<TunBuilder<'a>> for Params {
             destination: builder.destination,
             #[cfg(target_os = "linux")]
             broadcast: builder.broadcast,
+            // TODO
+            #[cfg(target_os = "linux")]
             netmask: builder.netmask,
         }
     }
