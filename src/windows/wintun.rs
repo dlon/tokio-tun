@@ -350,6 +350,38 @@ impl WintunSession {
             adapter,
         })
     }
+
+    pub fn read_wait_event(&self) -> RawHandle {
+        unsafe { self.adapter.dll_handle.read_wait_event(self.handle) }
+    }
+
+    /// Receive a packet, if there's anything to receive
+    pub fn try_recv(&self, buf: &mut [u8]) -> io::Result<usize> {
+        let (pkt, size) = unsafe { self.adapter.dll_handle.receive_packet(self.handle) }?;
+
+        let size = usize::try_from(size).unwrap();
+        unsafe { pkt.copy_to_nonoverlapping(buf.as_mut_ptr(), size) };
+
+        unsafe { self.adapter.dll_handle.release_receive_packet(self.handle, pkt) };
+
+        Ok(size)
+    }
+
+    /// Send a packet, unless the buffer is full
+    pub fn try_send(&self, buf: &[u8]) -> io::Result<usize> {
+        // TODO: refuse buf.len() > WINTUN_MAX_IP_PACKET_SIZE
+        // TODO: handle size limits more nicely
+
+        let size = u32::try_from(buf.len()).unwrap();
+
+        let pkt = unsafe { self.adapter.dll_handle.allocate_send_packet(self.handle, size) }?;
+
+        unsafe { pkt.copy_from_nonoverlapping(buf.as_ptr(), buf.len()) };
+
+        unsafe { self.adapter.dll_handle.send_packet(self.handle, pkt) };
+
+        Ok(buf.len())
+    }
 }
 
 impl Drop for WintunSession {

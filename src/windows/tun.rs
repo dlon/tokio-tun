@@ -1,14 +1,15 @@
 use std::{io, sync::Arc};
 
 use widestring::{U16CString, u16cstr, U16CStr};
+use windows_sys::Win32::{Foundation::{ERROR_NO_MORE_ITEMS, WAIT_FAILED, WAIT_OBJECT_0, WAIT_ABANDONED_0, ERROR_BUFFER_OVERFLOW}, System::{Threading::WaitForSingleObject, WindowsProgramming::INFINITE}};
 
 use crate::{params::Params, result::Result};
 
-use super::wintun::{WintunAdapter, WintunDll};
+use super::wintun::{WintunAdapter, WintunDll, WintunSession};
 
 pub struct TunImpl {
     adapter: Arc<WintunAdapter>,
-    // FIXME
+    session: WintunSession,
     name: String,
 }
 
@@ -18,9 +19,13 @@ impl TunImpl {
         // TODO: could be specified in params
         const TUNNEL_TYPE: &U16CStr = u16cstr!("TestTunnelType");
 
+        let dll = WintunDll::instance(&std::env::current_dir().unwrap())
+            .expect("FIXME: failed to load wintun.dll");
+    
+        dll.activate_logging();
+
         let adapter = WintunAdapter::create(
-            WintunDll::instance(&std::env::current_dir().unwrap())
-                .expect("FIXME: failed to load wintun.dll"),
+            dll,
             &U16CString::from_str(&params.name).expect("FIXME: contains nul"),
             TUNNEL_TYPE,
             // TODO: optionally specify GUID
@@ -28,8 +33,18 @@ impl TunImpl {
         )
         .expect("fixme: failed to create interface");
 
+        let adapter = Arc::new(adapter);
+
+        let session = WintunSession::new(
+            adapter.clone(),
+            // TODO: configurable capacity
+            0x400000,
+        )
+        .expect("fixme: failed to create wintun session");
+
         Ok(Self {
-            adapter: Arc::new(adapter),
+            adapter,
+            session,
             name: params.name,
         })
     }
@@ -38,18 +53,36 @@ impl TunImpl {
     ///
     /// This method takes &self, so it is possible to call this method concurrently with other methods on this struct.
     pub async fn recv(&self, buf: &mut [u8]) -> io::Result<usize> {
-        // TODO: try_recv but wait for event if nothing is instantly avail
-        Ok(0)
-    }
+        loop {
+            match self.session.try_recv(buf) {
+                Ok(read) => return Ok(read),
+                Err(error) => {
+                    if error.raw_os_error() != Some(ERROR_NO_MORE_ITEMS as i32) {
+                        return Err(error);
+                    }
 
-    /// Sends a packet to the Tun/Tap interface
-    ///
-    /// This method takes &self, so it is possible to call this method concurrently with other methods on this struct.
-    pub async fn send(&self, buf: &[u8]) -> io::Result<usize> {
-        // TODO
-        // TODO: this busyloops if the write buffer is full,
-        // but that should be a rare occurence
-        Ok(0)
+                    let event = self.session.read_wait_event() as isize;
+
+                    // TODO: stop on shutdown? should be automagically handled
+                    // TODO: should we be using something other than a threadpool?
+
+                    let wait_result = tokio::task::spawn_blocking(move || {
+                        unsafe {
+                            WaitForSingleObject(event, INFINITE)
+                        }
+                    })
+                    .await
+                    .unwrap();
+
+                    match wait_result {
+                        WAIT_OBJECT_0 => (),
+                        WAIT_ABANDONED_0 => return Err(io::Error::new(io::ErrorKind::Other, "read event was abandoned")),
+                        WAIT_FAILED => return Err(io::Error::last_os_error()),
+                        _ => unreachable!("unexpected wait result"),
+                    }
+                }
+            }
+        }
     }
 
     /// Try to receive a packet from the Tun/Tap interface
@@ -58,9 +91,27 @@ impl TunImpl {
     ///
     /// This method takes &self, so it is possible to call this method concurrently with other methods on this struct.
     pub fn try_recv(&self, buf: &mut [u8]) -> io::Result<usize> {
-        // TODO: same as recv but just fail if there is nothing to read yet
+        self.session.try_recv(buf)
+    }
 
-        Ok(0)
+    /// Sends a packet to the Tun/Tap interface
+    ///
+    /// This method takes &self, so it is possible to call this method concurrently with other methods on this struct.
+    pub async fn send(&self, buf: &[u8]) -> io::Result<usize> {
+        loop {
+            match self.session.try_send(buf) {
+                Ok(sent) => return Ok(sent),
+                Err(error) => {
+                    if error.raw_os_error() != Some(ERROR_BUFFER_OVERFLOW as i32) {
+                        return Err(error);
+                    }
+
+                    // busy loop while the send buffer is full
+                    // TODO: find a nicer way than busy looping, perhaps
+                }
+            }
+        }
+
     }
 
     /// Try to send a packet to the Tun/Tap interface
@@ -69,9 +120,7 @@ impl TunImpl {
     ///
     /// This method takes &self, so it is possible to call this method concurrently with other methods on this struct.
     pub fn try_send(&self, buf: &[u8]) -> io::Result<usize> {
-        // TODO: send but just fail if the buf is full
-
-        Ok(0)
+        self.session.try_send(buf)
     }
 
     pub fn name(&self) -> &str {
