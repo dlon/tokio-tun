@@ -335,6 +335,9 @@ pub struct WintunSession {
     handle: SessionHandle,
 }
 
+unsafe impl Send for WintunSession{}
+unsafe impl Sync for WintunSession {}
+
 impl WintunSession {
     pub fn new(
         adapter: Arc<WintunAdapter>,

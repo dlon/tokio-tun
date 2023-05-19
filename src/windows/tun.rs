@@ -8,10 +8,12 @@ use crate::{params::Params, result::Result};
 use super::wintun::{WintunAdapter, WintunDll, WintunSession};
 
 pub struct TunImpl {
-    adapter: Arc<WintunAdapter>,
     session: WintunSession,
     name: String,
 }
+
+unsafe impl Send for TunImpl {}
+unsafe impl Sync for TunImpl {}
 
 impl TunImpl {
     /// Creates a new instance of a Wintun device.
@@ -43,7 +45,6 @@ impl TunImpl {
         .expect("fixme: failed to create wintun session");
 
         Ok(Self {
-            adapter,
             session,
             name: params.name,
         })
