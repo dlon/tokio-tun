@@ -3,14 +3,14 @@ use socket2::SockAddr;
 use windows_sys::Win32::{Foundation::NO_ERROR, NetworkManagement::{Ndis::NET_LUID_LH, IpHelper::{InitializeUnicastIpAddressEntry, CreateUnicastIpAddressEntry}}, Networking::WinSock::{IpDadStatePreferred, SOCKADDR_INET}};
 
 /// Adds a unicast IP address for the given interface.
-pub fn add_ip_address_for_interface(luid: NET_LUID_LH, address: IpAddr) -> io::Result<()> {
+pub fn add_ip_address_for_interface(luid: NET_LUID_LH, address: IpAddr, prefix: u8) -> io::Result<()> {
     let mut row = unsafe { mem::zeroed() };
     unsafe { InitializeUnicastIpAddressEntry(&mut row) };
 
     row.InterfaceLuid = luid;
     row.Address = inet_sockaddr_from_socketaddr(SocketAddr::new(address, 0));
     row.DadState = IpDadStatePreferred;
-    row.OnLinkPrefixLength = 255;
+    row.OnLinkPrefixLength = prefix;
 
     let status = unsafe { CreateUnicastIpAddressEntry(&row) };
     if status != NO_ERROR as i32 {

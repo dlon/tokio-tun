@@ -227,6 +227,7 @@ impl<'a> From<TunBuilder<'a>> for Params {
             },
             #[cfg(target_os = "linux")]
             persist: builder.persist,
+            #[cfg(target_os = "linux")]
             up: builder.up,
             // TODO
             #[cfg(target_os = "linux")]

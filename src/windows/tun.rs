@@ -1,4 +1,4 @@
-use std::{io, sync::Arc};
+use std::{io, sync::Arc, net::IpAddr};
 
 use widestring::{U16CString, u16cstr, U16CStr};
 use windows_sys::Win32::{Foundation::{ERROR_NO_MORE_ITEMS, WAIT_FAILED, WAIT_OBJECT_0, WAIT_ABANDONED_0, ERROR_BUFFER_OVERFLOW}, System::{Threading::WaitForSingleObject, WindowsProgramming::INFINITE}};
@@ -43,6 +43,15 @@ impl TunImpl {
             0x400000,
         )
         .expect("fixme: failed to create wintun session");
+
+        if let Some(addr) = params.address {
+            super::net::add_ip_address_for_interface(
+                adapter.luid(),
+                IpAddr::V4(addr),
+                // FIXME: use netmask
+                24,
+            )?;
+        }
 
         Ok(Self {
             session,

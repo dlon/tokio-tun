@@ -10,6 +10,7 @@ pub struct Params {
     pub flags: i16,
     #[cfg(target_os = "linux")]
     pub persist: bool,
+    #[cfg(target_os = "linux")]
     pub up: bool,
     // TODO
     #[cfg(target_os = "linux")]
