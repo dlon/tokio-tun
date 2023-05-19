@@ -34,6 +34,17 @@ type WintunCreateAdapterFn = unsafe extern "stdcall" fn(
 type WintunCloseAdapterFn = unsafe extern "stdcall" fn(adapter: RawHandle);
 type WintunGetAdapterLuidFn =
     unsafe extern "stdcall" fn(adapter: RawHandle, luid: *mut NET_LUID_LH);
+
+type SessionHandle = RawHandle;
+
+type WintunStartSessionFn = unsafe extern "stdcall" fn(RawHandle, u32) -> SessionHandle;
+type WintunEndSessionFn = unsafe extern "stdcall" fn(SessionHandle);
+type WintunGetReadWaitEventFn = unsafe extern "stdcall" fn(SessionHandle) -> RawHandle;
+type WintunReceivePacketFn = unsafe extern "stdcall" fn(SessionHandle, *mut u32) -> *mut u8;
+type WintunReleaseReceivePacketFn = unsafe extern "stdcall" fn(SessionHandle, *const u8);
+type WintunAllocateSendPacketFn = unsafe extern "stdcall" fn(SessionHandle, u32) -> *mut u8;
+type WintunSendPacket = unsafe extern "stdcall" fn(SessionHandle, *const u8);
+
 type WintunLoggerCbFn = extern "stdcall" fn(WintunLoggerLevel, u64, *const u16);
 type WintunSetLoggerFn = unsafe extern "stdcall" fn(Option<WintunLoggerCbFn>);
 
@@ -49,7 +60,17 @@ pub struct WintunDll {
     handle: HINSTANCE,
     func_create: WintunCreateAdapterFn,
     func_close: WintunCloseAdapterFn,
+
     func_get_adapter_luid: WintunGetAdapterLuidFn,
+
+    func_start_session: WintunStartSessionFn,
+    func_end_session: WintunEndSessionFn,
+    func_get_read_wait_event: WintunGetReadWaitEventFn,
+    func_receive_packet: WintunReceivePacketFn,
+    func_release_receive_packet: WintunReleaseReceivePacketFn,
+    func_allocate_send_packet: WintunAllocateSendPacketFn,
+    func_send_packet: WintunSendPacket,
+
     func_set_logger: WintunSetLoggerFn,
 }
 
@@ -159,16 +180,60 @@ impl WintunDll {
                     CStr::from_bytes_with_nul(b"WintunCloseAdapter\0").unwrap(),
                 )?) as *const _ as *const _)
             },
-            func_get_adapter_luid: unsafe {
+
+            func_start_session: unsafe {
                 *((&get_proc_fn(
                     handle,
-                    CStr::from_bytes_with_nul(b"WintunGetAdapterLUID\0").unwrap(),
+                    CStr::from_bytes_with_nul(b"WintunStartSession\0").unwrap(),
                 )?) as *const _ as *const _)
             },
+            func_end_session: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunEndSession\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+            func_get_read_wait_event: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunGetReadWaitEvent\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+            func_receive_packet: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunReceivePacket\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+            func_release_receive_packet: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunReleaseReceivePacket\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+            func_allocate_send_packet: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunAllocateSendPacket\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+            func_send_packet: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunSendPacket\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+
             func_set_logger: unsafe {
                 *((&get_proc_fn(
                     handle,
                     CStr::from_bytes_with_nul(b"WintunSetLogger\0").unwrap(),
+                )?) as *const _ as *const _)
+            },
+            func_get_adapter_luid: unsafe {
+                *((&get_proc_fn(
+                    handle,
+                    CStr::from_bytes_with_nul(b"WintunGetAdapterLUID\0").unwrap(),
                 )?) as *const _ as *const _)
             },
         })
@@ -209,6 +274,47 @@ impl WintunDll {
         luid.assume_init()
     }
 
+    unsafe fn start_session(&self, adapter: RawHandle, capacity: u32) -> io::Result<SessionHandle> {
+        let session = (self.func_start_session)(adapter, capacity);
+        if session.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(session)
+    }
+
+    unsafe fn end_session(&self, session: SessionHandle) {
+        (self.func_end_session)(session)
+    }
+
+    unsafe fn read_wait_event(&self, session: SessionHandle) -> RawHandle {
+        (self.func_get_read_wait_event)(session)
+    }
+
+    unsafe fn receive_packet(&self, session: SessionHandle) -> io::Result<(*mut u8, u32)> {
+        let mut bytes_read = 0u32;
+        let read_bytes = (self.func_receive_packet)(session, &mut bytes_read);
+        if read_bytes.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        Ok((read_bytes, bytes_read))
+    }
+
+    unsafe fn release_receive_packet(&self, session: SessionHandle, packet: *mut u8) {
+        (self.func_release_receive_packet)(session, packet);
+    }
+
+    unsafe fn allocate_send_packet(&self, session: SessionHandle, packet_size: u32) -> io::Result<*mut u8> {
+        let packet = (self.func_allocate_send_packet)(session, packet_size);
+        if packet.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(packet)
+    }
+
+    unsafe fn send_packet(&self, session: SessionHandle, packet: *mut u8) {
+        (self.func_send_packet)(session, packet);
+    }
+
     pub fn activate_logging(self: &Arc<Self>) -> WintunLoggerHandle {
         WintunLoggerHandle::from_handle(self.clone())
     }
@@ -221,6 +327,34 @@ impl WintunDll {
 impl Drop for WintunDll {
     fn drop(&mut self) {
         unsafe { FreeLibrary(self.handle) };
+    }
+}
+
+pub struct WintunSession {
+    adapter: Arc<WintunAdapter>,
+    handle: SessionHandle,
+}
+
+impl WintunSession {
+    pub fn new(
+        adapter: Arc<WintunAdapter>,
+        capacity: u32,
+    ) -> io::Result<Self> {
+        Ok(Self {
+            handle: unsafe {
+                adapter.dll_handle.start_session(
+                    adapter.handle,
+                    capacity,
+                )?
+            },
+            adapter,
+        })
+    }
+}
+
+impl Drop for WintunSession {
+    fn drop(&mut self) {
+        unsafe { self.adapter.dll_handle.end_session(self.handle) }
     }
 }
 
